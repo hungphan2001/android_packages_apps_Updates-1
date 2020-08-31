@@ -36,6 +36,6 @@ public final class Constants {
     static final String PROP_BUILD_VERSION = "ro.cherish.version";
     static final String OTA_URL = "https://raw.githubusercontent.com/hungphan2001/OTA/master/builds/%s.json";
     static final String DOWNLOAD_WEBPAGE_URL = "https://raw.githubusercontent.com/hungphan2001/OTA/master/changelogs/%s/%s.txt";
-    static final String PROP_VERSION_CODE = "ro.cherish.ota.version_code";
+    static final String PROP_VERSION_CODE = "com.cherish.ota.version_code";
     static final String EXPORT_PATH = "Cherish-Updates/";
 }
