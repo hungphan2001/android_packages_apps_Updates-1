@@ -30,7 +30,7 @@ import androidx.core.app.NotificationCompat;
 
 import org.json.JSONException;
 import com.cherish.ota.download.DownloadClient;
-import org.pixelexperience.ota.misc.Utils;
+import com.cherish.ota.misc.Utils;
 
 import java.io.File;
 import java.io.IOException;
