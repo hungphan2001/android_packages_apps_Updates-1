@@ -1,7 +1,6 @@
 /*
  * Copyright (C) 2017 The LineageOS Project
  * Copyright (C) 2019 The PixelExperience Project
- * Copyright (C) 2019 The CherishOS Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,13 +25,11 @@ public class UpdateBase implements UpdateBaseInfo {
     private String mVersion;
     private long mFileSize;
     private String mDonateUrl;
-    private String mSupportUrl;
     private String mForumUrl;
     private String mWebsiteUrl;
     private String mNewsUrl;
     private String mMaintainer;
     private String mMaintainerUrl;
-    private String mDeveloperUrl;
     private String mHash;
 
     UpdateBase() {
@@ -162,23 +159,5 @@ public class UpdateBase implements UpdateBaseInfo {
 
     public void setHash(String hash) {
         mHash = hash;
-    }
-
-    @Override
-    public String getSupportUrl() {
-        return mSupportUrl;
-    }
-
-    public void setSupportUrl(String supportUrl) {
-        mSupportUrl = supportUrl;
-    }
-
-    @Override
-    public String getDeveloperUrl() {
-        return mDeveloperUrl;
-    }
-
-    public void setDeveloperUrl(String developerUrl) {
-        mDeveloperUrl = developerUrl;
     }
 }

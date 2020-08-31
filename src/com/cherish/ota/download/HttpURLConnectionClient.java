@@ -1,7 +1,6 @@
 /*
  * Copyright (C) 2017 The LineageOS Project
  * Copyright (C) 2019 The PixelExperience Project
- * Copyright (C) 2019 The CherishOS Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +17,10 @@
 package com.cherish.ota.download;
 
 import android.os.SystemClock;
+import android.os.SystemProperties;
 import android.util.Log;
+
+import com.cherish.ota.misc.Constants;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -49,7 +51,7 @@ public class HttpURLConnectionClient implements DownloadClient {
                             DownloadClient.DownloadCallback callback,
                             boolean useDuplicateLinks) throws IOException {
         mClient = (HttpURLConnection) new URL(url).openConnection();
-        mClient.setRequestProperty("User-Agent", "com.cherish.ota");
+        setExtraHeaders();
         mDestination = destination;
         mProgressListener = progressListener;
         mCallback = callback;
@@ -66,6 +68,11 @@ public class HttpURLConnectionClient implements DownloadClient {
 
     private static boolean isPartialContentCode(int statusCode) {
         return statusCode == 206;
+    }
+
+    private void setExtraHeaders() {
+        mClient.setRequestProperty("User-Agent", "com.cherish.ota");
+        mClient.setRequestProperty("Current-Build-Timestamp", SystemProperties.get(Constants.PROP_BUILD_DATE, "0"));
     }
 
     @Override
@@ -168,7 +175,7 @@ public class HttpURLConnectionClient implements DownloadClient {
             String range = mClient.getRequestProperty("Range");
             mClient.disconnect();
             mClient = (HttpURLConnection) newUrl.openConnection();
-            mClient.setRequestProperty("User-Agent", "com.cherish.ota");
+            setExtraHeaders();
             if (range != null) {
                 mClient.setRequestProperty("Range", range);
             }

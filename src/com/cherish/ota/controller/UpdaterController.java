@@ -1,7 +1,6 @@
 /*
  * Copyright (C) 2017 The LineageOS Project
  * Copyright (C) 2019 The PixelExperience Project
- * Copyright (C) 2019-2020 The CherishOS Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,14 +24,14 @@ import android.os.PowerManager;
 import android.os.SystemClock;
 import android.util.Log;
 
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+
 import com.cherish.ota.UpdatesDbHelper;
 import com.cherish.ota.download.DownloadClient;
 import com.cherish.ota.misc.Utils;
 import com.cherish.ota.model.Update;
 import com.cherish.ota.model.UpdateInfo;
 import com.cherish.ota.model.UpdateStatus;
-
-import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import java.io.File;
 import java.io.IOException;
@@ -49,6 +48,7 @@ public class UpdaterController {
     public static final String ACTION_INSTALL_PROGRESS = "action_install_progress";
     public static final String ACTION_UPDATE_REMOVED = "action_update_removed";
     public static final String ACTION_UPDATE_STATUS = "action_update_status_change";
+    public static final String ACTION_NETWORK_UNAVAILABLE = "action_network_unavailable";
     public static final String EXTRA_DOWNLOAD_ID = "extra_download_id";
     private static final int MAX_REPORT_INTERVAL_MS = 1000;
     @SuppressLint("StaticFieldLeak")
@@ -99,6 +99,19 @@ public class UpdaterController {
             Intent intent = new Intent();
             intent.setAction(ACTION_UPDATE_STATUS);
             intent.putExtra(EXTRA_DOWNLOAD_ID, downloadId);
+            mBroadcastManager.sendBroadcast(intent);
+        }).start();
+    }
+
+    public void notifyNetworkUnavailable() {
+        new Thread(() -> {
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            Intent intent = new Intent();
+            intent.setAction(ACTION_NETWORK_UNAVAILABLE);
             mBroadcastManager.sendBroadcast(intent);
         }).start();
     }

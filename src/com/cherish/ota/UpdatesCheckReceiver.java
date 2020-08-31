@@ -1,7 +1,6 @@
 /*
  * Copyright (C) 2017 The LineageOS Project
  * Copyright (C) 2019 The PixelExperience Project
- * Copyright (C) 2019 The CherishOS Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +30,7 @@ import androidx.core.app.NotificationCompat;
 
 import org.json.JSONException;
 import com.cherish.ota.download.DownloadClient;
-import com.cherish.ota.misc.Utils;
+import org.pixelexperience.ota.misc.Utils;
 
 import java.io.File;
 import java.io.IOException;
@@ -80,10 +79,6 @@ public class UpdatesCheckReceiver extends BroadcastReceiver {
     }
 
     public static void scheduleRepeatingUpdatesCheck(Context context) {
-        if (!Utils.isUpdateCheckEnabled(context)) {
-            return;
-        }
-
         PendingIntent updateCheckIntent = getRepeatingUpdatesCheckIntent(context);
         AlarmManager alarmMgr = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         alarmMgr.setRepeating(AlarmManager.RTC, System.currentTimeMillis() +
@@ -128,13 +123,6 @@ public class UpdatesCheckReceiver extends BroadcastReceiver {
     public void onReceive(final Context context, Intent intent) {
         if (Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())) {
             Utils.cleanupDownloadsDir(context);
-        }
-
-        if (!Utils.isUpdateCheckEnabled(context)) {
-            return;
-        }
-
-        if (Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())) {
             // Set a repeating alarm on boot to check for new updates once per day
             scheduleRepeatingUpdatesCheck(context);
         }
@@ -163,7 +151,7 @@ public class UpdatesCheckReceiver extends BroadcastReceiver {
             @Override
             public void onSuccess(File destination) {
                 try {
-                    if (json.exists() && Utils.checkForNewUpdates(json, jsonNew)) {
+                    if (Utils.checkForNewUpdates(json, jsonNew, true)) {
                         showNotification(context);
                         updateRepeatingUpdatesCheck(context);
                     }

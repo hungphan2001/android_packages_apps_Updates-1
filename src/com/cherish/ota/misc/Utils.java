@@ -1,7 +1,6 @@
 /*
  * Copyright (C) 2017 The LineageOS Project
  * Copyright (C) 2019 The PixelExperience Project
- * Copyright (C) 2019 The CherishOS Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +30,6 @@ import android.os.SystemProperties;
 import android.os.storage.StorageManager;
 import android.preference.PreferenceManager;
 import android.util.Log;
-import android.widget.Toast;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -51,7 +49,6 @@ import java.io.InputStream;
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
@@ -116,7 +113,9 @@ public class Utils {
     }
 
     public static boolean canInstall(UpdateBaseInfo update) {
-        return (update.getTimestamp() > SystemProperties.getLong(Constants.PROP_BUILD_DATE, 0));
+        return (update.getTimestamp() > SystemProperties.getLong(Constants.PROP_BUILD_DATE, 0)) &&
+                update.getVersion().equalsIgnoreCase(
+                        SystemProperties.get(Constants.PROP_BUILD_VERSION));
     }
 
     public static UpdateInfo parseJson(File file, boolean compatibleOnly)
@@ -180,8 +179,11 @@ public class Utils {
                 || info.getType() == ConnectivityManager.TYPE_WIFI));
     }
 
-    public static boolean checkForNewUpdates(File oldJson, File newJson)
+    public static boolean checkForNewUpdates(File oldJson, File newJson, boolean fromBoot)
             throws IOException, JSONException {
+        if (!oldJson.exists() || fromBoot) {
+            return parseJson(newJson, true) != null;
+        }
         UpdateInfo oldUpdate = parseJson(oldJson, true);
         UpdateInfo newUpdate = parseJson(newJson, true);
         if (oldUpdate == null || newUpdate == null) {
@@ -256,7 +258,7 @@ public class Utils {
         UpdatesDbHelper dbHelper = new UpdatesDbHelper(context);
         List<String> knownPaths = new ArrayList<>();
         for (UpdateInfo update : dbHelper.getUpdates()) {
-            if (isCompatible(update)){
+            if (isCompatible(update)) {
                 knownPaths.add(update.getFile().getAbsolutePath());
             }
         }
@@ -305,13 +307,12 @@ public class Utils {
         return isAB;
     }
 
-    public static void addToClipboard(Context context, String label, String text, String toastMessage) {
+    public static void addToClipboard(Context context, String label, String text) {
         ClipboardManager clipboard = (ClipboardManager) context.getSystemService(
                 Context.CLIPBOARD_SERVICE);
         if (clipboard != null) {
             ClipData clip = ClipData.newPlainText(label, text);
             clipboard.setPrimaryClip(clip);
-            Toast.makeText(context, toastMessage, Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -323,26 +324,8 @@ public class Utils {
         return sm.isEncrypted(file);
     }
 
-    public static int getUpdateCheckSetting(Context context) {
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
-        return preferences.getInt(Constants.PREF_AUTO_UPDATES_CHECK_INTERVAL,
-                Constants.AUTO_UPDATES_CHECK_INTERVAL_WEEKLY);
-    }
-
-    public static boolean isUpdateCheckEnabled(Context context) {
-        return getUpdateCheckSetting(context) != Constants.AUTO_UPDATES_CHECK_INTERVAL_NEVER;
-    }
-
     public static long getUpdateCheckInterval(Context context) {
-        switch (Utils.getUpdateCheckSetting(context)) {
-            case Constants.AUTO_UPDATES_CHECK_INTERVAL_DAILY:
-                return AlarmManager.INTERVAL_DAY;
-            case Constants.AUTO_UPDATES_CHECK_INTERVAL_WEEKLY:
-            default:
-                return AlarmManager.INTERVAL_DAY * 7;
-            case Constants.AUTO_UPDATES_CHECK_INTERVAL_MONTHLY:
-                return AlarmManager.INTERVAL_DAY * 30;
-        }
+        return AlarmManager.INTERVAL_DAY;
     }
 
     public static String calculateMD5(File updateFile) {
@@ -387,14 +370,14 @@ public class Utils {
 
     @SuppressLint("DefaultLocale")
     public static String readableFileSize(long size) {
-        String units[] = new String[]{"B", "kB", "MB", "GB", "TB", "PB"};
+        String[] units = new String[]{"B", "kB", "MB", "GB", "TB", "PB"};
         int mod = 1024;
         double power = (size > 0) ? Math.floor(Math.log(size) / Math.log(mod)) : 0;
-        String unit = units[(int)power];
+        String unit = units[(int) power];
         double result = size / Math.pow(mod, power);
-        if (unit.equals("B")|| unit.equals("kB") || unit.equals("MB")){
-            result = (int)result;
-            return String.format("%d %s", (int)result, unit);
+        if (unit.equals("B") || unit.equals("kB") || unit.equals("MB")) {
+            result = (int) result;
+            return String.format("%d %s", (int) result, unit);
         }
         return String.format("%01.2f %s", result, unit);
     }

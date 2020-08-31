@@ -1,7 +1,6 @@
 /*
  * Copyright (C) 2017 The LineageOS Project
  * Copyright (C) 2019 The PixelExperience Project
- * Copyright (C) 2019 The CherishOS Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,8 +42,4 @@ public interface UpdateBaseInfo {
     String getMaintainerUrl();
 
     String getHash();
-
-    String getSupportUrl();
-
-    String getDeveloperUrl();
 }

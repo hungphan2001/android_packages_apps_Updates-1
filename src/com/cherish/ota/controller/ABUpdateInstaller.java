@@ -1,7 +1,6 @@
 /*
  * Copyright (C) 2017 The LineageOS Project
  * Copyright (C) 2019 The PixelExperience Project
- * Copyright (C) 2020 The CherishOS Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,12 +24,12 @@ import android.os.UpdateEngineCallback;
 import android.text.TextUtils;
 import android.util.Log;
 
+import androidx.preference.PreferenceManager;
+
 import com.cherish.ota.misc.Constants;
 import com.cherish.ota.misc.Utils;
 import com.cherish.ota.model.Update;
 import com.cherish.ota.model.UpdateStatus;
-
-import androidx.preference.PreferenceManager;
 
 import java.io.BufferedReader;
 import java.io.File;

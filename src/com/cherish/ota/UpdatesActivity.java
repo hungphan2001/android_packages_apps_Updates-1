@@ -1,7 +1,6 @@
 /*
  * Copyright (C) 2017 The LineageOS Project
  * Copyright (C) 2019 The PixelExperience Project
- * Copyright (C) 2019 The CherishOS Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,37 +22,28 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.animation.Animation;
-import android.view.animation.LinearInterpolator;
-import android.view.animation.RotateAnimation;
-import android.widget.Spinner;
-import android.widget.Switch;
+import android.widget.Button;
+import android.widget.TextView;
 
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.widget.Toolbar;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
-import androidx.preference.PreferenceManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.SimpleItemAnimator;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
-import com.google.android.material.appbar.AppBarLayout;
-import com.google.android.material.appbar.CollapsingToolbarLayout;
 import com.google.android.material.snackbar.Snackbar;
 
 import org.json.JSONException;
 import com.cherish.ota.controller.UpdaterController;
 import com.cherish.ota.controller.UpdaterService;
 import com.cherish.ota.download.DownloadClient;
-import com.cherish.ota.misc.Constants;
 import com.cherish.ota.misc.Utils;
 import com.cherish.ota.model.UpdateInfo;
 
@@ -71,10 +61,9 @@ public class UpdatesActivity extends UpdatesListActivity {
 
     private UpdatesListAdapter mAdapter;
 
-    private View mRefreshIconView;
-    private RotateAnimation mRefreshAnimation;
-
     private ExtrasFragment mExtrasFragment;
+    private SwipeRefreshLayout mSwipeRefresh;
+    private Button mRefreshButton;
     private ServiceConnection mConnection = new ServiceConnection() {
 
         @Override
@@ -93,6 +82,11 @@ public class UpdatesActivity extends UpdatesListActivity {
             mAdapter.notifyDataSetChanged();
         }
     };
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           String[] permissions, int[] grantResults) {
+        mAdapter.onRequestPermissionsResult(requestCode, grantResults);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -116,6 +110,8 @@ public class UpdatesActivity extends UpdatesListActivity {
                     String downloadId = intent.getStringExtra(UpdaterController.EXTRA_DOWNLOAD_ID);
                     handleDownloadStatusChange(downloadId);
                     mAdapter.notifyDataSetChanged();
+                } else if (UpdaterController.ACTION_NETWORK_UNAVAILABLE.equals(intent.getAction())) {
+                    showSnackbar(R.string.snack_download_failed, Snackbar.LENGTH_LONG);
                 } else if (UpdaterController.ACTION_DOWNLOAD_PROGRESS.equals(intent.getAction()) ||
                         UpdaterController.ACTION_INSTALL_PROGRESS.equals(intent.getAction())) {
                     String downloadId = intent.getStringExtra(UpdaterController.EXTRA_DOWNLOAD_ID);
@@ -125,22 +121,50 @@ public class UpdatesActivity extends UpdatesListActivity {
                     mAdapter.removeItem(downloadId);
                     hideUpdates();
                     downloadUpdatesList(false);
+                }else if (ExportUpdateService.ACTION_EXPORT_STATUS.equals(intent.getAction())){
+                    int status = intent.getIntExtra(ExportUpdateService.EXTRA_EXPORT_STATUS, -1);
+                    handleExportStatusChanged(status);
                 }
             }
         };
 
         Toolbar toolbar = findViewById(R.id.toolbar);
+        toolbar.setTitle("");
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
-        mRefreshAnimation = new RotateAnimation(0, 360, Animation.RELATIVE_TO_SELF, 0.5f,
-                Animation.RELATIVE_TO_SELF, 0.5f);
-        mRefreshAnimation.setInterpolator(new LinearInterpolator());
-        mRefreshAnimation.setDuration(1000);
         mExtrasFragment = new ExtrasFragment();
-        getFragmentManager().beginTransaction()
+        getSupportFragmentManager().beginTransaction()
                 .replace(R.id.extras_view, mExtrasFragment)
                 .commit();
+
+        setupRefreshComponents();
+    }
+
+    private void handleExportStatusChanged(int status){
+        switch(status){
+            case ExportUpdateService.EXPORT_STATUS_RUNNING:
+                showSnackbar(R.string.dialog_export_title, Snackbar.LENGTH_SHORT);
+                break;
+            case ExportUpdateService.EXPORT_STATUS_ALREADY_RUNNING:
+                showSnackbar(R.string.toast_already_exporting, Snackbar.LENGTH_SHORT);
+                break;
+            case ExportUpdateService.EXPORT_STATUS_SUCCESS:
+                showSnackbar(R.string.notification_export_success, Snackbar.LENGTH_SHORT);
+                break;
+            case ExportUpdateService.EXPORT_STATUS_FAILED:
+                showSnackbar(R.string.notification_export_fail, Snackbar.LENGTH_SHORT);
+                break;
+            default:
+                break;
+        }
+    }
+
+    private void setupRefreshComponents() {
+        mRefreshButton = findViewById(R.id.check);
+        mRefreshButton.setOnClickListener(view -> downloadUpdatesList(true));
+        mSwipeRefresh = findViewById(R.id.swiperefresh);
+        mSwipeRefresh.setEnabled(false);
     }
 
     @Override
@@ -159,6 +183,8 @@ public class UpdatesActivity extends UpdatesListActivity {
         intentFilter.addAction(UpdaterController.ACTION_DOWNLOAD_PROGRESS);
         intentFilter.addAction(UpdaterController.ACTION_INSTALL_PROGRESS);
         intentFilter.addAction(UpdaterController.ACTION_UPDATE_REMOVED);
+        intentFilter.addAction(UpdaterController.ACTION_NETWORK_UNAVAILABLE);
+        intentFilter.addAction(ExportUpdateService.ACTION_EXPORT_STATUS);
         LocalBroadcastManager.getInstance(this).registerReceiver(mBroadcastReceiver, intentFilter);
     }
 
@@ -180,14 +206,6 @@ public class UpdatesActivity extends UpdatesListActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
-            case R.id.menu_refresh: {
-                downloadUpdatesList(true);
-                return true;
-            }
-            case R.id.menu_preferences: {
-                showPreferencesDialog();
-                return true;
-            }
             case R.id.menu_show_changelog: {
                 startActivity(new Intent(this, LocalChangelogActivity.class));
                 return true;
@@ -261,8 +279,7 @@ public class UpdatesActivity extends UpdatesListActivity {
     private void processNewJson(File json, File jsonNew, boolean manualRefresh) {
         try {
             loadUpdatesList(jsonNew, manualRefresh);
-            if (json.exists() && Utils.isUpdateCheckEnabled(this) &&
-                    Utils.checkForNewUpdates(json, jsonNew)) {
+            if (json.exists() && Utils.checkForNewUpdates(json, jsonNew, false)) {
                 UpdatesCheckReceiver.updateRepeatingUpdatesCheck(this);
             }
             // In case we set a one-shot check because of a previous failure
@@ -319,9 +336,24 @@ public class UpdatesActivity extends UpdatesListActivity {
             showSnackbar(R.string.snack_updates_check_failed, Snackbar.LENGTH_LONG);
             return;
         }
-
         refreshAnimationStart();
         downloadClient.start();
+    }
+
+    private void refreshAnimationStart() {
+        if (mRefreshButton == null || mSwipeRefresh == null) {
+            setupRefreshComponents();
+        }
+        mSwipeRefresh.setRefreshing(true);
+        mRefreshButton.setEnabled(false);
+    }
+
+    private void refreshAnimationStop() {
+        if (mRefreshButton == null || mSwipeRefresh == null) {
+            setupRefreshComponents();
+        }
+        mSwipeRefresh.setRefreshing(false);
+        mRefreshButton.setEnabled(true);
     }
 
     private void handleDownloadStatusChange(String downloadId) {
@@ -341,55 +373,9 @@ public class UpdatesActivity extends UpdatesListActivity {
 
     @Override
     public void showSnackbar(int stringId, int duration) {
-        Snackbar.make(findViewById(R.id.main_container), stringId, duration).show();
-    }
-
-    private void refreshAnimationStart() {
-        if (mRefreshIconView == null) {
-            mRefreshIconView = findViewById(R.id.menu_refresh);
-        }
-        if (mRefreshIconView != null) {
-            mRefreshAnimation.setRepeatCount(Animation.INFINITE);
-            mRefreshIconView.startAnimation(mRefreshAnimation);
-            mRefreshIconView.setEnabled(false);
-        }
-    }
-
-    private void refreshAnimationStop() {
-        if (mRefreshIconView != null) {
-            mRefreshAnimation.setRepeatCount(0);
-            mRefreshIconView.setEnabled(true);
-        }
-    }
-
-    private void showPreferencesDialog() {
-        View view = LayoutInflater.from(this).inflate(R.layout.preferences_dialog, null);
-        Spinner autoCheckInterval =
-                view.findViewById(R.id.preferences_auto_updates_check_interval);
-        Switch dataWarning = view.findViewById(R.id.preferences_mobile_data_warning);
-
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        autoCheckInterval.setSelection(Utils.getUpdateCheckSetting(this));
-        dataWarning.setChecked(prefs.getBoolean(Constants.PREF_MOBILE_DATA_WARNING, true));
-
-        new AlertDialog.Builder(this, R.style.AppTheme_AlertDialogStyle)
-                .setTitle(R.string.menu_preferences)
-                .setView(view)
-                .setOnDismissListener(dialogInterface -> {
-                    prefs.edit()
-                            .putInt(Constants.PREF_AUTO_UPDATES_CHECK_INTERVAL,
-                                    autoCheckInterval.getSelectedItemPosition())
-                            .putBoolean(Constants.PREF_MOBILE_DATA_WARNING,
-                                    dataWarning.isChecked())
-                            .apply();
-
-                    if (Utils.isUpdateCheckEnabled(this)) {
-                        UpdatesCheckReceiver.scheduleRepeatingUpdatesCheck(this);
-                    } else {
-                        UpdatesCheckReceiver.cancelRepeatingUpdatesCheck(this);
-                        UpdatesCheckReceiver.cancelUpdatesCheck(this);
-                    }
-                })
-                .show();
+        Snackbar snack = Snackbar.make(findViewById(R.id.view_snackbar), stringId, duration);
+        TextView tv = snack.getView().findViewById(com.google.android.material.R.id.snackbar_text);
+        tv.setTextColor(getColor(R.color.text_primary));
+        snack.show();
     }
 }
